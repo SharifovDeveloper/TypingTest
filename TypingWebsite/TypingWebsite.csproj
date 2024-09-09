@@ -12,9 +12,10 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Pages\TypingTest.css">
-        <DependentUpon>TypingTest.razor</DependentUpon>
-      </None>
+      <Content Update="Pages\TypingTest.razor.css">
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

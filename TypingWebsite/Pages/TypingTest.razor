@@ -1,0 +1,170 @@
+﻿@page "/typingtest"
+@using System.Timers
+@inject IJSRuntime JSRuntime
+
+<div class="typing-test-container" @onkeydown="HandleKeyDown" tabindex="0">
+    <div class="settings">
+        <div class="time-selector">
+            <span @onclick="() => SetTime(15)" class="time-option @(timeSet == 15 ? "active" : "")">15</span>
+            <span @onclick="() => SetTime(30)" class="time-option @(timeSet == 30 ? "active" : "")">30</span>
+            <span @onclick="() => SetTime(60)" class="time-option @(timeSet == 60 ? "active" : "")">60</span>
+            <span @onclick="() => SetTime(120)" class="time-option @(timeSet == 120 ? "active" : "")">120</span>
+        </div>
+    </div>
+
+    <div class="stats">
+        <span>@timeRemaining seconds</span>
+    </div>
+
+    <div class="typing-area">
+        <p class="text-to-type">
+            @for (int i = 0; i < textToType.Length; i++)
+            {
+            <span class="word @(i < userInput.Length && textToType[i] == userInput[i] ? "correct" : i < userInput.Length ? "incorrect" : "")">
+                    @textToType[i]
+                </span>
+            @if (i == userInput.Length - 1 && testInProgress && userInput.Length < textToType.Length)
+            {
+            <span class="cursor">|</span>
+            }
+            }
+            @if (userInput.Length == textToType.Length && testInProgress)
+            {
+            <span class="cursor">|</span>
+            }
+        </p>
+    </div>
+
+    <div class="results">
+        <p>WPM: @wordsPerMinute</p>
+        <p>Accuracy: @accuracy%</p>
+    </div>
+
+    @if (startButtonVisible)
+    {
+    <button @onclick="StartTest" class="start-button">Start Test</button>
+    }
+</div>
+
+@code {
+private string textToType = "might think use by might some life take increase even write life point of look early after you each never only most even against while use come begin take way new what would other need since";
+private string userInput = "";
+private double timeSet = 15;  // Set default time to 15 seconds
+private double timeRemaining;
+private double wordsPerMinute = 0;
+private double accuracy = 0;
+private bool testInProgress = false;
+private bool startButtonVisible = true; // Show the start button initially
+private Timer timer;
+private bool testStarted = false; // Track if the test has already been started
+
+private void SetTime(int seconds)
+{
+if (!testInProgress)
+{
+timeSet = seconds;
+timeRemaining = seconds;
+}
+}
+
+private void StartTest()
+{
+userInput = "";
+timeRemaining = timeSet;
+wordsPerMinute = 0;
+accuracy = 0;
+testInProgress = true;
+startButtonVisible = false; // Hide the start button when the test starts
+
+timer = new Timer(1000);
+timer.Elapsed += OnTimedEvent;
+timer.AutoReset = true;
+timer.Start();
+
+testStarted = true; // Mark the test as started
+}
+
+private void OnTimedEvent(object sender, ElapsedEventArgs e)
+{
+InvokeAsync(() =>
+{
+timeRemaining--;
+CalculateWPM();
+CalculateAccuracy();
+if (timeRemaining <= 0)
+{
+EndTest();
+}
+StateHasChanged();
+});
+}
+
+private void HandleKeyDown(KeyboardEventArgs e)
+{
+if (testInProgress)
+{
+if (e.Key.Length == 1 && char.IsLetterOrDigit(e.Key[0]))
+{
+userInput += e.Key;
+}
+else if (e.Key == "Backspace" && userInput.Length > 0)
+{
+userInput = userInput.Substring(0, userInput.Length - 1);
+}
+else if (e.Key == " " && userInput.Length > 0 && userInput.Last() != ' ')
+{
+if (IsCurrentWordCorrect())
+{
+userInput += " ";
+}
+else
+{
+// Mark the current word as incorrect if space is pressed without correct word match
+userInput += " ";
+}
+}
+StateHasChanged();
+}
+else if (testStarted)
+{
+// Only start the test if it has already been started and the button is visible
+StartTest();
+}
+}
+
+private bool IsCurrentWordCorrect()
+{
+string[] words = textToType.Split(' ');
+string[] inputWords = userInput.TrimEnd().Split(' ');
+
+if (inputWords.Length > 0 && inputWords.Length <= words.Length)
+{
+return inputWords.Last() == words[inputWords.Length - 1];
+}
+
+return false;
+}
+
+private void CalculateWPM()
+{
+int correctWords = userInput.Split(' ')
+.Zip(textToType.Split(' '), (input, expected) => input == expected)
+.Count(match => match);
+
+wordsPerMinute = correctWords / ((timeSet - timeRemaining) / 60);
+}
+
+private void CalculateAccuracy()
+{
+int correctChars = userInput.TakeWhile((c, i) => i < textToType.Length && c == textToType[i]).Count();
+accuracy = ((double)correctChars / textToType.Length) * 100;
+}
+
+private void EndTest()
+{
+timer.Stop();
+timer.Dispose(); // Dispose of the timer
+testInProgress = false;
+startButtonVisible = true; // Show the start button after the test ends
+}
+}
